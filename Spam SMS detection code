@@ -1,0 +1,70 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+# Load Dataset
+dataset = pd.read_csv("spam.csv", encoding='latin1')
+
+# Select necessary columns
+data = dataset[['v1', 'v2']].copy()
+data.columns = ['label', 'message']
+
+# Label Encoding
+data['label_num'] = data['label'].map({'ham': 0, 'spam': 1})
+
+# Split Data into Train and Test
+X = data['message']
+y = data['label_num']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Vectorization
+vectorizer = TfidfVectorizer()
+X_train_vec = vectorizer.fit_transform(X_train)
+X_test_vec = vectorizer.transform(X_test)
+
+#  Model Training
+model = LogisticRegression(max_iter=1000)
+model.fit(X_train_vec, y_train)
+
+# Prediction and Evaluation
+y_pred = model.predict(X_test_vec)
+
+acc = accuracy_score(y_test, y_pred)
+print(f"\nTest Accuracy: {acc*100:.2f}%")
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred, target_names=['Ham', 'Spam']))
+
+print("\nConfusion Matrix:")
+cm = confusion_matrix(y_test, y_pred)
+print(cm)
+
+# Predict on full dataset
+X_all_vec = vectorizer.transform(data['message'])
+data['predicted_label_num'] = model.predict(X_all_vec)
+data['predicted_label'] = data['predicted_label_num'].map({0: 'ham', 1: 'spam'})
+
+# Save Predictions
+data.to_csv("spam_predictions.csv", index=False)
+print("\nPredictions saved to 'spam_predictions.csv'.")
+
+# Manual Marking Option
+user_input = input("\nEnter 0 to mark all messages as SPAM, 1 to mark all as HAM, or press Enter to use model prediction: ")
+
+if user_input == '0':
+    data['final_label'] = 'spam'
+    print("\nAll messages marked as SPAM:")
+    print(data[['message', 'final_label']].head(10))
+
+elif user_input == '1':
+    data['final_label'] = 'ham'
+    print("\nAll messages marked as HAM:")
+    print(data[['message', 'final_label']].head(10))
+
+else:
+    data['final_label'] = data['predicted_label']
+    print("\nModel predictions:")
+    print(data[['message', 'final_label']].head(10))
